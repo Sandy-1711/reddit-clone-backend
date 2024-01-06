@@ -1,6 +1,6 @@
 const { verifyToken, verifyTokenAndAuthorisation } = require('../../middlewares/verifyAuthToken');
 const Post = require('../../models/Post');
-
+const Comment = require('../../models/Comment')
 const router = require('express').Router();
 
 
@@ -46,7 +46,7 @@ router.post('/u/:id/addPost', verifyTokenAndAuthorisation, async function (req, 
 
 // Add posts to a community or subreddit
 
-router.get('/u/:userid/r/:communityid/addPost', verifyTokenAndAuthorisation, async function (req, res) {
+router.post('/u/:userid/r/:communityid/addPost', verifyTokenAndAuthorisation, async function (req, res) {
     const userid = req.params.userid;
     const communityid = req.params.communityid;
     const { title, content } = req.body;
@@ -69,6 +69,34 @@ router.get('/u/:userid/r/:communityid/addPost', verifyTokenAndAuthorisation, asy
         res.status(500).json(err);
     }
 })
+
+// Deleting a post
+
+router.delete('/u/deletePost/:postid', verifyTokenAndAuthorisation, async function (req, res) {
+    try {
+        let postId = req.params.postid;
+
+        const postToBeDeleted = await Post.findById(postId).populate('comments');
+        if (!postToBeDeleted) {
+            return res.status(404).json({ message: "Post not found" });
+        }
+        if (postToBeDeleted.comments && postToBeDeleted.comments.length.length > 0) {
+            const commentIds = postToBeDeleted.comments.map(comment => commment._id);
+            await Comment.deleteMany({ _id: { $in: commentIds } })
+        }
+        const postcreator = await user.findById(postToBeDeleted.author);
+        if (postcreator) {
+            postcreator.posts.pull(postId);
+            await user.save();
+        }
+        await postToBeDeleted.remove();
+        res.status(200).json({ message: 'Post deleted successfully' })
+    }
+    catch (err) {
+        res.status(500).json(err);
+    }
+})
+
 
 
 module.exports = router;

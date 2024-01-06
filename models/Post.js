@@ -7,6 +7,7 @@ const postSchema = new mongoose.Schema({
     community: { type: mongoose.Schema.Types.ObjectId, ref: 'Subreddit' },
     upvotes: { type: Number, default: 0 },
     downvotes: { type: Number, default: 0 },
+    comments:[{type:mongoose.Schema.Types.ObjectId,ref:'Comment'}],
 }, {
     timestamps: true
 });

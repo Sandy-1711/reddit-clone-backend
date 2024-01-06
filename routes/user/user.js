@@ -9,7 +9,7 @@ const router = require('express').Router();
 router.get('/:id', verifyToken, async function (req, res) {
     const id = req.params.id;
     try {
-        const foundUser = await user.findById(id);
+        const foundUser = await user.findById(id).populate('posts');
         if (!foundUser) {
             res.status(400).json("User not found");
         }
@@ -21,7 +21,6 @@ router.get('/:id', verifyToken, async function (req, res) {
         res.status(500).json(err);
     }
 })
-
 
 
 module.exports = router;
