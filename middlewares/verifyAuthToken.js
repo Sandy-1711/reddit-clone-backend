@@ -10,7 +10,7 @@ const verifyToken = function (req, res, next) {
         })
     }
     else {
-        return res.status(401).send({ authenticated: false })
+        return res.status(401).send({ authenticated: false, message: 'Session Expired. Please login again.' })
     }
 }
 const verifyTokenAndAuthorisation = function (req, res, next) {

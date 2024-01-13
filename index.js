@@ -1,13 +1,16 @@
 const express = require('express');
-const app = express();
 const mongoose = require('mongoose')
 const dotenv = require('dotenv');
 const bodyParser = require('body-parser');
 const auth = require('./routes/auth/auth')
 const user = require('./routes/user/user')
+const post = require('./routes/post/post')
 const cors = require('cors')
 const cloudinary = require('cloudinary')
 const multer = require('multer')
+const app = express();
+const { Server } = require("socket.io");
+const http = require('http');
 app.use(cors())
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
@@ -35,6 +38,24 @@ app.use('/api/test', function (req, res) {
 })
 app.use('/api/auth', auth)
 app.use('/api/user', user)
-app.listen(process.env.PORT || 5000, function () {
-    console.log('server is running');
+app.use('/api/posts', post)
+const httpserver = http.Server(app);
+const io = new Server(httpserver, { cors: { origins: '*:*', methods: ['GET', 'POST'] } });
+// const server = app.listen(process.env.PORT || 5000, function () {
+//     console.log('server is running');
+// })
+// var a;
+io.on('connection', (socket) => {
+    // console.log('A user connected');
+    // a = socket;
+    socket.on('disconnect', () => {
+        // console.log('user disconnected');
+    })
 })
+app.set('io', io);
+
+httpserver.listen(5000, () => {
+    console.log('server is running');
+});
+
+// module.exports = { app,  };

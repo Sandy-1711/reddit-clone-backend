@@ -1,45 +1,77 @@
 const { verifyToken, verifyTokenAndAuthorisation } = require('../../middlewares/verifyAuthToken');
 const Post = require('../../models/Post');
-const Comment = require('../../models/Comment')
+const Comment = require('../../models/Comment');
+const User = require('../../models/User');
+const Subreddit = require('../../models/Subreddit')
 const router = require('express').Router();
+const socket = require('socket.io');
 
+//checking post route
+
+router.get('/test', async function (req, res) {
+    res.status(200).json('working');
+})
 
 // Fetch latest posts
-
 router.get('/latestposts', verifyToken, async function (req, res) {
     try {
-        const oneHourAgo = new Date();
-        oneHourAgo.setHours(oneHourAgo.getHours() - 1);
-        const latestPosts = await Post.find({ createdAt: { $gte: oneHourAgo } }).sort({ createdAt: 'desc' })
+        const twelvehoursAgo = new Date();
+        twelvehoursAgo.setHours(twelvehoursAgo.getHours() - 12);
+        const latestPosts = await Post.find({ createdAt: { $gte: twelvehoursAgo } }).sort({ createdAt: 'desc' })
         if (latestPosts.length === 0) {
-            res.status(404).json("No posts found at the moment");
+            res.status(404).json({ message: "No posts found at the moment" });
             return;
         }
-        res.status(200).json(latestPosts);
+        res.status(200).json({ posts: latestPosts });
 
     }
     catch (err) {
-        res.status(404).json(err);
+        console.log(err);
+        res.status(500).json(err);
     }
 })
 
-// Add Posts by user
+// Add Posts by User
 
 router.post('/u/:id/addPost', verifyTokenAndAuthorisation, async function (req, res) {
     const id = req.params.id;
+    const { title, content } = req.body;
+    
+    console.log(req.body);
     try {
-        if (title.length === 0 || content.length === 0) {
+        if (title.length === 0) {
+            // console.log("empty");
             res.status(400).json({ message: 'Please fill out all the fields' })
             return;
         }
+        if (content && req.body.postimg) {
+            res.status(400).json({ message: "Both photos and content not allowed" });
+            return;
+        }
+        if (!content && !req.body.postimg) {
+            res.status(400).json({ message: "Content Missing" });
+            return;
+        }
+        const nameofauthor = (await User.findById(id)).username;
         const newpost = new Post({
             title: req.body.title,
-            content: req.body.content,
+            content: req.body?.content,
             author: id,
+            authorName: nameofauthor,
+            postimg: req.body?.postimg,
         })
+        // console.log(newpost);
         await newpost.save();
-        res.status(200).json(newpost);
+        const useruploadingpost = await User.findById(id);
+        useruploadingpost.posts.push(newpost);
+        // console.log(useruploadingpost);
+        useruploadingpost.save();
+        // addposttouser();
+        req.app.get('io').emit('newpost', newpost)
+
+        res.status(200).json({ message: "Post saved successfully", newpost });
     } catch (err) {
+        console.log(err);
         res.status(500).json(err);
     }
 })
@@ -55,12 +87,15 @@ router.post('/u/:userid/r/:communityid/addPost', verifyTokenAndAuthorisation, as
             res.status(400).json({ message: 'Please fill out all the fields' });
             return;
         }
+        const nameofauthor = (await User.findById(userid)).username;
+        const nameofcommunity = (await Subreddit.findById(communityid)).name;
         const newpost = new Post({
             author: userid,
             title: title,
             content: content,
             community: communityid,
-
+            authorName: nameofauthor,
+            communityName: nameofcommunity,
         })
         await newpost.save();
         res.status(200).json(newpost);
@@ -72,7 +107,7 @@ router.post('/u/:userid/r/:communityid/addPost', verifyTokenAndAuthorisation, as
 
 // Deleting a post
 
-router.delete('/u/deletePost/:postid', verifyTokenAndAuthorisation, async function (req, res) {
+router.delete('/u/delete/:id/:postid', verifyTokenAndAuthorisation, async function (req, res) {
     try {
         let postId = req.params.postid;
 
@@ -81,18 +116,23 @@ router.delete('/u/deletePost/:postid', verifyTokenAndAuthorisation, async functi
             return res.status(404).json({ message: "Post not found" });
         }
         if (postToBeDeleted.comments && postToBeDeleted.comments.length.length > 0) {
-            const commentIds = postToBeDeleted.comments.map(comment => commment._id);
+            const commentIds = postToBeDeleted.comments.map(comment => comment._id);
             await Comment.deleteMany({ _id: { $in: commentIds } })
         }
-        const postcreator = await user.findById(postToBeDeleted.author);
+        if (postToBeDeleted.community) {
+            await Subreddit.posts.pull(postToBeDeleted._id);
+        }
+        const postcreator = await User.findById(postToBeDeleted.author);
         if (postcreator) {
             postcreator.posts.pull(postId);
-            await user.save();
+            await postcreator.save();
         }
-        await postToBeDeleted.remove();
+        await Post.deleteOne(postToBeDeleted);
+        req.app.get('io').emit('postdeleted', postToBeDeleted);
         res.status(200).json({ message: 'Post deleted successfully' })
     }
     catch (err) {
+        console.log(err);
         res.status(500).json(err);
     }
 })

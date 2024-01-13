@@ -64,21 +64,23 @@ router.post('/register', async function (req, res) {
 
 })
 
-router.post('/login/username', async function (req, res) {
+router.post('/login', async function (req, res) {
     const { username, email, password } = req.body;
     try {
         const foundUser = await User.findOne({ username: username });
+        // console.log(foundUser);
         if (!foundUser) {
-            res.status(404).json('User not found');
+            res.status(404).json({ message: 'User not found' });
         }
         else {
-            if (bcrypt.hashSync(password, 10) !== foundUser.password) {
-                res.status(400).json('Invalid credentials');
+            if (!(await bcrypt.compare(password, foundUser.password))) {
+                // console.log(bcrypt.hashSync(password, 10));                
+                res.status(400).json({ message: 'Invalid credentials' });
             }
             else {
                 const token = jwt.sign({ username: foundUser.username, id: foundUser._id, isAdmin: foundUser.isAdmin }, process.env.JWT_SEC, { expiresIn: '1h' });
                 const { password: userPassword, ...others } = foundUser._doc;
-                res.status(200).json({ ...others, token });
+                res.status(200).json({ user: { ...others, token } });
             }
         }
     }
