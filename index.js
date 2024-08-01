@@ -5,6 +5,7 @@ const bodyParser = require('body-parser');
 const auth = require('./routes/auth/auth')
 const user = require('./routes/user/user')
 const post = require('./routes/post/post')
+const comment = require('./routes/comment/comment')
 const cors = require('cors')
 const cloudinary = require('cloudinary')
 const multer = require('multer')
@@ -39,6 +40,7 @@ app.use('/api/test', function (req, res) {
 app.use('/api/auth', auth)
 app.use('/api/user', user)
 app.use('/api/posts', post)
+app.use('/api/comment', comment);
 const httpserver = http.Server(app);
 const io = new Server(httpserver, { cors: { origins: '*:*', methods: ['GET', 'POST'] } });
 // const server = app.listen(process.env.PORT || 5000, function () {

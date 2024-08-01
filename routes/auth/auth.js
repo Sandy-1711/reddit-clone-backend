@@ -31,6 +31,7 @@ router.post('/register', async function (req, res) {
         }
         if (await User.findOne({ username: username }) || await User.findOne({ email: username })) {
             res.status(400).json('User already registered');
+            return;
         }
         var profileImageURL = null;
         if (profilePic) {
@@ -58,7 +59,7 @@ router.post('/register', async function (req, res) {
 
     }
     catch (err) {
-        console.log(err);
+        console.log(err?.message);
         res.status(500).json(err);
     }
 
@@ -71,11 +72,13 @@ router.post('/login', async function (req, res) {
         // console.log(foundUser);
         if (!foundUser) {
             res.status(404).json({ message: 'User not found' });
+            return ;
         }
         else {
             if (!(await bcrypt.compare(password, foundUser.password))) {
                 // console.log(bcrypt.hashSync(password, 10));                
                 res.status(400).json({ message: 'Invalid credentials' });
+                return;
             }
             else {
                 const token = jwt.sign({ username: foundUser.username, id: foundUser._id, isAdmin: foundUser.isAdmin }, process.env.JWT_SEC, { expiresIn: '1h' });
